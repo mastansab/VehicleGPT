@@ -1,0 +1,9 @@
+title: "VehicleAI"
+description: >-
+  On-edge SDV assistant: live CAN, OBD-II and J1939 telemetry with
+  natural-language queries. No hardware or cloud required.
+theme: jekyll-theme-cayman
+show_downloads: false
+plugins:
+  - jekyll-seo-tag
+  - jekyll-sitemap

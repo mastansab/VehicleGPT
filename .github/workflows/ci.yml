@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -e .
+          pip install pytest ruff mypy
+      - name: Lint (ruff)
+        run: |
+          ruff check .
+      - name: Type check (mypy)
+        run: |
+          mypy src
+      - name: Run tests
+        env:
+          PYTHONPATH: src
+        run: |
+          pytest -q tests
+
+  # Build the sdist/wheel and exercise the *installed* package from outside the
+  # checkout, so anything missing from the wheel (package data, entry points)
+  # fails here rather than for someone running `pip install peykan`.
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Build and check distributions
+        run: |
+          python -m pip install --upgrade pip build twine
+          python -m build
+          twine check --strict dist/*
+      - name: Smoke-test the installed wheel
+        run: |
+          python -m venv /tmp/venv
+          /tmp/venv/bin/pip install dist/*.whl
+          cd /tmp
+          /tmp/venv/bin/peykan --help
+          /tmp/venv/bin/peykan dbc-info
+          /tmp/venv/bin/peykan j1939-pgns
+          /tmp/venv/bin/python -c "import peykan; print(peykan.__version__)"
+
+  # web/: optional chat UI. Deploys are
+  # manual (`npm run deploy` in web/); CI keeps the code type-safe and buildable.
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - name: Type check
+        run: npx tsc --noEmit -p .
+      - name: Lint
+        run: npx oxlint src/
+      - name: Build
+        run: npx vite build

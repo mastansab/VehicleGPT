@@ -1,0 +1,126 @@
+# Contributing to Peykan
+
+Thanks for taking a look. This project is intentionally small and educational —
+keep contributions in that spirit: prefer clarity over cleverness, and reuse
+the existing patterns (see `src/peykan/`'s layout) rather than introducing
+new ones for a one-off feature.
+
+## Local setup
+
+```bash
+python -m venv .venv
+.venv/Scripts/activate   # or `source .venv/bin/activate` on Linux/macOS
+pip install -r requirements.txt
+pip install -e .
+pip install pytest ruff mypy
+```
+
+Windows note: if your checkout lives under a cloud-synced folder (OneDrive,
+Dropbox, etc.) and `pip install -e .` or `git` commands fail with odd
+`FileNotFoundError`/`Permission denied` errors on file creation, that's the
+sync client interfering with the filesystem — try pausing sync for that
+folder or working from a local (non-synced) path.
+
+## Before opening a PR
+
+```bash
+ruff check .
+mypy src
+pytest -q
+```
+
+All three must pass — this mirrors the local CI workflow exactly
+(Python 3.10 and 3.11). If you add a new module, keep `mypy`'s zero-error bar:
+this codebase deliberately keeps `strict`-ish settings clean rather than
+suppressing errors with blanket `# type: ignore`s.
+
+For a live sanity check beyond the test suite, run the actual server and
+call a tool through a real MCP client:
+
+```bash
+peykan demo --port 6278
+```
+
+then, in another shell, use the MCP Inspector (`npx @modelcontextprotocol/inspector`,
+connect to `http://localhost:6278/sse`) or a small script with
+`mcp.client.sse.sse_client` / `ClientSession` to call a tool end-to-end.
+Unit tests mock the CAN bus (see `tests/test_cli.py`'s `FakeBus`); nothing in
+the suite starts a real server or virtual bus, so this manual pass is the
+only thing that catches wiring/transport-level regressions.
+
+## Code layout
+
+- `src/peykan/bus.py`, `dbc.py`, `obd.py`, `diagnostics.py`, `j1939.py`,
+  `uds.py`, `logs.py` — protocol/bus logic, no MCP or CLI awareness. New protocol behavior belongs
+  here, not in `server/` or `cli.py`. `j1939.py` is deliberately *not*
+  DBC-driven (J1939 rides 29-bit extended IDs whose arbitration field is
+  structured data); its simulator side lives in
+  `simulator/j1939_runner.py`.
+- `src/peykan/safety.py` — the transmit policy. Anything that sends on the
+  bus must go through `TransmitGuard.wrap(bus, purpose, write=...)`, with
+  `write=True` for anything that changes ECU or bus state; never call a raw
+  bus's `send` from a tool or CLI command.
+- `src/peykan/server/mcp_server.py` — MCP tool/resource definitions;
+  `server/schemas.py` — the Pydantic models those tools return;
+  `server/live_state.py` — the single background listener backing both the
+  passive-listening tools (`read_can_frames`/`filter_frames`/`monitor_signal`)
+  and the `/dashboard` SSE stream. Passive tools should query
+  `live_state.frames_since(...)`, not open their own bus connection — that
+  used to be a real reliability bug (frames dropped between calls, or stolen
+  by a competing listener on the same bus instance). Request/response tools
+  (`send_obd_request`, `send_diagnostic_request`) are the exception: they
+  genuinely need to send something and wait for a specific reply, so they
+  still open their own short-lived `make_bus()` instance.
+- `src/peykan/simulator/runner.py` — the ECU simulator threads
+  (`SimThread`, `OBDResponderThread`, `DiagnosticResponderThread`), plus
+  `j1939_runner.py`'s J1939 broadcasters/responders started from
+  `run_simulator()` when `PEYKAN_J1939_ENABLED`. Each
+  bus *listener* thread needs its **own** `make_bus(...)` instance — a
+  single `python-can` `Bus` instance's `recv()` queue is consumed once per
+  message, so two threads sharing one instance will silently steal frames
+  from each other instead of each seeing every frame. (This was a real bug
+  caught while adding the diagnostic responder — see `run_simulator()`'s
+  comment.)
+- `src/peykan/cli.py` — the `peykan` Typer CLI; mirrors the MCP tool
+  surface where practical so both interfaces stay in sync.
+
+## Adding a new MCP tool
+
+1. Add the protocol logic (encode/decode/whatever) to a plain module first —
+   testable without any bus or MCP machinery.
+2. Add a Pydantic return model to `server/schemas.py`.
+3. Register the tool in `server/mcp_server.py::create_app()`. If it's
+   passively watching traffic, read from `live_state.frames_since(...)`
+   (see `read_can_frames` for the pattern) rather than opening a bus
+   connection. If it sends something and waits for a specific reply, open
+   its own bus with `make_bus()` and always `shutdown_bus()` in a `finally`
+   (see `send_obd_request`). Either way, cap any `duration_s`/`timeout_s`
+   against `settings.max_duration_s`.
+4. If the CLI should expose the same capability, mirror it as a Typer
+   command in `cli.py`.
+5. Add a test: pure-logic tests belong next to the module they test (see
+   `tests/test_diagnostics.py`, `tests/test_obd.py`); if the tool touches
+   the bus, prefer a `FakeBus`-style unit test (see `tests/test_cli.py`)
+   over spinning up a real server in the suite.
+
+## The web app (`web/`)
+
+The optional `web/` app is a local chat UI talking to the same vehicle server. See [`web/README.md`](web/README.md).
+
+```bash
+cd web
+npm install
+cp .dev.vars.example .dev.vars       # Turnstile test keys + a session secret
+npx wrangler login                   # the chat model runs on Workers AI, even in dev
+peykan demo --transport streamable-http --port 6401   # in another terminal: the car
+npm run dev
+```
+
+Containers can't run in local development on Windows, so dev uses the Peykan you start yourself (`VEHICLE_DEV_URL` in `.dev.vars`); deployed, each visitor gets their own container.
+
+Before a PR touching `web/`, run what CI runs: `npx tsc --noEmit -p .`, `npx oxlint src/` and `npx vite build`. Never commit `.dev.vars` or real secrets: production secrets are set with `npx wrangler secret put`.
+
+## Reporting issues
+
+Include your OS, Python version, and — if it's a CAN/MCP issue — whether
+you're using the virtual backend or real hardware (`PEYKAN_CAN_INTERFACE`).

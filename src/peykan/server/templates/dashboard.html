@@ -1,0 +1,2566 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VehicleGPT — On-Device Vehicle Intelligence &amp; Predictive Diagnostics</title>
+<meta name="description" content="On-device vehicle intelligence running a localized Small Language Model and the HealthEngine diagnostics core with zero cloud reliance.">
+<style>
+/* -------------------------------------------------------------------------
+   Design Tokens & Typography
+   Editorial Serif for display headlines, Humanist Sans for interface & body,
+   Monospace with tabular figures for telemetry signals and codes.
+   ------------------------------------------------------------------------- */
+:root {
+  --bg: #F6F4EF;
+  --bg-translucent: rgba(246, 244, 239, 0.95);
+  --surface: #FFFFFF;
+  --surface-subtle: #F9F8F5;
+  --surface-hover: #F2EFE9;
+  --border: #E5E2DB;
+  --border-strong: #D1CDC4;
+  --brand: #0F766E;
+  --brand-light: #F0FDFA;
+  --brand-tint: #CCFBF1;
+  --brand-dark: #115E59;
+  --text: #1C1917;
+  --text-muted: #57534E;
+  --text-subtle: #8C857B;
+  --green: #15803D;
+  --green-bg: #F0FDF4;
+  --green-border: #BBF7D0;
+  --amber: #B45309;
+  --amber-bg: #FFFBEB;
+  --amber-border: #FDE68A;
+  --red: #B91C1C;
+  --red-bg: #FEF2F2;
+  --red-border: #FECACA;
+  --blue: #1D4ED8;
+  --blue-bg: #EFF6FF;
+
+  --font-serif: Newsreader, "Playfair Display", "Times New Roman", Georgia, serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-fast: 160ms;
+  --duration-normal: 260ms;
+  --duration-entrance: 520ms;
+
+  --radius-xs: 3px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --container-max: 1140px;
+}
+
+[data-theme="dark"] {
+  --bg: #0E1217;
+  --bg-translucent: rgba(14, 18, 23, 0.95);
+  --surface: #151B22;
+  --surface-subtle: #1C232D;
+  --surface-hover: #232C38;
+  --border: #2A3441;
+  --border-strong: #3B485A;
+  --brand: #14B8A6;
+  --brand-light: #134E4A;
+  --brand-tint: #042F2E;
+  --brand-dark: #2DD4BF;
+  --text: #F3F4F6;
+  --text-muted: #9CA3AF;
+  --text-subtle: #6B7280;
+  --green-bg: #052E16;
+  --green-border: #14532D;
+  --amber-bg: #451A03;
+  --amber-border: #78350F;
+  --red-bg: #450A0A;
+  --red-border: #7F1D1D;
+  --blue-bg: #172554;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  display: flex;
+  flex-direction: column;
+  transition: background-color var(--duration-normal) var(--ease-out), color var(--duration-normal) var(--ease-out);
+}
+
+/* Typography scale */
+h1, h2, h3, .serif-heading {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+h1 { font-size: 44px; line-height: 1.15; }
+h2 { font-size: 30px; line-height: 1.25; }
+h3 { font-size: 20px; line-height: 1.35; font-family: var(--font-sans); font-weight: 600; letter-spacing: -0.01em; }
+p { max-width: 68ch; }
+
+.numeric-val {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* Icon baseline */
+.icon-svg {
+  display: inline-block;
+  vertical-align: middle;
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.5;
+  stroke: currentColor;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* -------------------------------------------------------------------------
+   Header Navigation
+   ------------------------------------------------------------------------- */
+.site-header {
+  position: sticky;
+  top: 0;
+  height: 60px;
+  background: var(--bg-translucent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+}
+.brand-lockup {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+.brand-mark {
+  width: 28px;
+  height: 28px;
+  background: var(--brand);
+  color: #FFFFFF;
+  border-radius: var(--radius-xs);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-serif);
+  font-weight: 700;
+  font-size: 15px;
+}
+.brand-name {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+.brand-sub {
+  font-size: 11px;
+  color: var(--text-subtle);
+  margin-left: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.nav-link {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-muted);
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  transition: color var(--duration-fast), background-color var(--duration-fast);
+  cursor: pointer;
+}
+.nav-link:hover { color: var(--text); background: var(--surface-hover); }
+.nav-link.active { color: var(--brand); background: var(--brand-light); font-weight: 600; }
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.btn-primary {
+  background: var(--brand);
+  color: #FFFFFF !important;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 7px 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--brand-dark);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
+}
+.btn-primary:hover { background: var(--brand-dark); transform: translateY(-1px); }
+.btn-primary:active { transform: translateY(0); }
+
+.btn-ghost {
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 7px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all var(--duration-fast);
+}
+.btn-ghost:hover { background: var(--surface-subtle); border-color: var(--border-strong); }
+
+.theme-toggle {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--duration-fast);
+}
+.theme-toggle:hover { color: var(--text); border-color: var(--border-strong); }
+
+/* -------------------------------------------------------------------------
+   Page Views Container
+   ------------------------------------------------------------------------- */
+#page-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.page-view {
+  display: none;
+  width: 100%;
+}
+.page-view.active {
+  display: flex;
+  flex-direction: column;
+  animation: pageEntrance var(--duration-normal) var(--ease-out);
+}
+@keyframes pageEntrance {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* -------------------------------------------------------------------------
+   Landing Page (Overview)
+   ------------------------------------------------------------------------- */
+.hero-wrap {
+  padding: 64px 24px 48px;
+  max-width: var(--container-max);
+  margin: 0 auto;
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 48px;
+  align-items: center;
+}
+.hero-tag {
+  font-size: 12px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--brand);
+  margin-bottom: 12px;
+  display: inline-block;
+}
+.hero-sub {
+  font-size: 17px;
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin-top: 16px;
+  margin-bottom: 28px;
+}
+.hero-cta-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* Technical Blueprint Preview Card */
+.blueprint-hero-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  position: relative;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+.blueprint-hero-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-subtle);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 8px;
+}
+
+/* Animated SVG Car */
+.car-stroke-art path, .car-stroke-art circle {
+  stroke-dasharray: 800;
+  stroke-dashoffset: 800;
+  animation: drawBlueprint 1.2s var(--ease-out) forwards;
+}
+@keyframes drawBlueprint {
+  to { stroke-dashoffset: 0; }
+}
+
+/* Trust Strip */
+.trust-bar {
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  padding: 14px 24px;
+}
+.trust-row {
+  max-width: var(--container-max);
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.trust-fact {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+}
+.trust-fact-val {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--brand);
+}
+
+/* Content Sections */
+.section-wrap {
+  padding: 72px 24px;
+  max-width: var(--container-max);
+  margin: 0 auto;
+  width: 100%;
+}
+.section-meta {
+  font-size: 12px;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--brand);
+  margin-bottom: 8px;
+  display: inline-block;
+}
+.section-lead {
+  font-size: 16px;
+  color: var(--text-muted);
+  margin-top: 8px;
+  margin-bottom: 36px;
+  max-width: 62ch;
+}
+
+/* Asymmetric Problem Grid */
+.asym-grid-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 20px;
+}
+.spec-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+}
+.spec-num {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--brand);
+  margin-bottom: 10px;
+}
+.spec-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--text);
+}
+.spec-body {
+  font-size: 14px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* Pipeline 4-Step */
+.pipeline-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+.pipeline-step {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+}
+.step-index {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--brand);
+  background: var(--brand-light);
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  margin-bottom: 12px;
+  width: fit-content;
+}
+.step-title { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+.step-desc { font-size: 13px; color: var(--text-muted); line-height: 1.5; margin-bottom: 12px; flex: 1; }
+.step-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.tag-badge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  padding: 2px 5px;
+  border-radius: var(--radius-xs);
+  color: var(--text-muted);
+}
+
+/* Predict & Pinpoint Sequence */
+.pinpoint-layout {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 28px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 32px;
+}
+.timeline-story {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  position: relative;
+  padding-left: 20px;
+}
+.timeline-story::before {
+  content: "";
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: 5px;
+  width: 1px;
+  background: var(--border-strong);
+}
+.story-item { position: relative; }
+.story-marker {
+  position: absolute;
+  left: -20px;
+  top: 5px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2px solid var(--green);
+}
+.story-item.watch .story-marker { border-color: var(--amber); }
+.story-item.critical .story-marker { border-color: var(--red); background: var(--red-bg); }
+.story-time { font-family: var(--font-mono); font-size: 11px; color: var(--text-subtle); text-transform: uppercase; }
+.story-head { font-size: 15px; font-weight: 600; color: var(--text); margin: 2px 0; }
+.story-detail { font-size: 13px; color: var(--text-muted); }
+
+/* Root Cause Diagnostic Box */
+.root-cause-card {
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.chain-node {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--amber);
+  padding: 8px 12px;
+  border-radius: var(--radius-xs);
+  font-size: 13px;
+  line-height: 1.4;
+}
+.chain-node.critical { border-left-color: var(--red); }
+.chain-arrow { text-align: center; color: var(--text-subtle); font-size: 11px; font-family: var(--font-mono); }
+
+/* Embedded Mini-Demo */
+.demo-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 24px;
+  max-width: 760px;
+  margin: 0 auto;
+}
+.demo-chips-row {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  margin-bottom: 12px;
+}
+.demo-chip {
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  padding: 5px 10px;
+  border-radius: var(--radius-xs);
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  color: var(--text);
+  transition: all var(--duration-fast);
+}
+.demo-chip:hover { border-color: var(--brand); color: var(--brand); }
+
+.demo-console {
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  min-height: 160px;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.chat-entry { display: flex; flex-direction: column; max-width: 90%; }
+.chat-entry.user { align-self: flex-end; }
+.chat-entry.assistant { align-self: flex-start; }
+.chat-bubble {
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.chat-entry.user .chat-bubble { background: var(--brand); color: #FFFFFF; }
+.chat-entry.assistant .chat-bubble { background: var(--surface); border: 1px solid var(--border); color: var(--text); }
+.chat-meta { font-size: 10px; color: var(--text-subtle); margin-top: 3px; font-family: var(--font-mono); }
+
+.demo-input-row { display: flex; gap: 8px; }
+.demo-text-field {
+  flex: 1;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--text);
+  outline: none;
+}
+.demo-text-field:focus { border-color: var(--brand); background: var(--surface); }
+
+/* Hardware Scalability Table */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  font-size: 13px;
+}
+.data-table th, .data-table td {
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.data-table th {
+  background: var(--surface-subtle);
+  font-weight: 600;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.data-table tr:last-child td { border-bottom: none; }
+
+/* Accordion FAQ */
+.faq-wrap { display: flex; flex-direction: column; gap: 10px; }
+.faq-row {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.faq-head {
+  padding: 14px 18px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  user-select: none;
+}
+.faq-content {
+  padding: 0 18px 14px;
+  font-size: 14px;
+  color: var(--text-muted);
+  line-height: 1.6;
+  display: none;
+}
+.faq-row.open .faq-content { display: block; }
+.faq-chevron { transition: transform var(--duration-fast); }
+.faq-row.open .faq-chevron { transform: rotate(180deg); }
+
+/* -------------------------------------------------------------------------
+   Interactive Product Demo Page ("/demo")
+   ------------------------------------------------------------------------- */
+.demo-chrome-bar {
+  height: 42px;
+  background: var(--surface-subtle);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  font-size: 12px;
+}
+.demo-viewport-grid {
+  height: calc(100vh - 102px);
+  display: grid;
+  grid-template-columns: 280px 1fr 380px;
+  overflow: hidden;
+}
+
+/* Left: Component Health List */
+.panel-components {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.panel-title-bar {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.comp-list-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.comp-item-card {
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  transition: all var(--duration-fast);
+}
+.comp-item-card:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-subtle);
+}
+.comp-item-card.active-comp {
+  border-color: var(--brand);
+  background: var(--brand-light);
+}
+.comp-item-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+.comp-name { font-size: 13px; font-weight: 600; }
+.status-pill {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 2px 5px;
+  border-radius: var(--radius-xs);
+  letter-spacing: 0.04em;
+}
+.status-healthy { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
+.status-watch { background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber-border); }
+.status-warning { background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber-border); }
+.status-critical { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-border); }
+
+.comp-bar-track {
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+  margin: 6px 0;
+}
+.comp-bar-fill { height: 100%; transition: width var(--duration-normal) var(--ease-out); }
+.comp-item-note { font-size: 11px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Center: Visual Digital Twin */
+.panel-center-telemetry {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  background: var(--bg);
+  padding: 16px;
+  gap: 14px;
+}
+.health-overview-strip {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 20px;
+  align-items: center;
+}
+.radial-score-box {
+  position: relative;
+  width: 74px;
+  height: 74px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.radial-score-box svg { transform: rotate(-90deg); }
+.radial-score-text { position: absolute; text-align: center; }
+.radial-num { font-size: 22px; font-weight: 700; line-height: 1; font-family: var(--font-mono); }
+.radial-sub { font-size: 9px; font-family: var(--font-mono); text-transform: uppercase; color: var(--text-subtle); }
+
+.vitals-quad {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.vital-tile {
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  padding: 6px 10px;
+  min-width: 80px;
+}
+.vital-label { font-size: 10px; font-family: var(--font-mono); text-transform: uppercase; color: var(--text-subtle); }
+.vital-figure { font-size: 16px; font-weight: 600; font-family: var(--font-mono); color: var(--text); }
+.vital-figure small { font-size: 10px; color: var(--text-muted); font-weight: normal; }
+
+/* Technical Illustration Canvas */
+.twin-stage {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+.twin-stage-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-subtle);
+}
+.car-blueprint-viewport {
+  position: relative;
+  width: 100%;
+  height: 220px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-subtle);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-xs);
+  overflow: hidden;
+}
+
+/* Hotspots on Car (Pulse only when Watch or Critical!) */
+.hotspot-node {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1.5px solid var(--green);
+  color: var(--text);
+  font-size: 10px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transform: translate(-50%, -50%);
+  transition: transform var(--duration-fast);
+  z-index: 5;
+}
+.hotspot-node:hover { transform: translate(-50%, -50%) scale(1.2); }
+.hotspot-node.status-watch, .hotspot-node.status-warning {
+  border-color: var(--amber);
+  animation: pulseWatch 2s infinite;
+}
+.hotspot-node.status-critical {
+  border-color: var(--red);
+  background: var(--red-bg);
+  color: var(--red);
+  animation: pulseCritical 1.2s infinite;
+}
+@keyframes pulseWatch {
+  0% { box-shadow: 0 0 0 0 rgba(180, 83, 9, 0.4); }
+  70% { box-shadow: 0 0 0 6px rgba(180, 83, 9, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(180, 83, 9, 0); }
+}
+@keyframes pulseCritical {
+  0% { box-shadow: 0 0 0 0 rgba(185, 28, 28, 0.5); }
+  70% { box-shadow: 0 0 0 8px rgba(185, 28, 28, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(185, 28, 28, 0); }
+}
+
+/* Causal Chain Banner */
+.causal-display-box {
+  background: var(--amber-bg);
+  border: 1px solid var(--amber-border);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  display: none;
+}
+.causal-display-title {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--amber);
+  margin-bottom: 6px;
+}
+.causal-steps-strip { display: flex; align-items: center; gap: 6px; font-size: 12px; overflow-x: auto; }
+.causal-badge { background: var(--surface); border: 1px solid var(--amber-border); padding: 3px 8px; border-radius: var(--radius-xs); white-space: nowrap; }
+
+/* Scenario Bar */
+.scenario-button-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.scenario-title-label { font-size: 11px; font-family: var(--font-mono); color: var(--text-subtle); text-transform: uppercase; margin-right: 4px; }
+.btn-scenario {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 5px 10px;
+  border-radius: var(--radius-xs);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text);
+  cursor: pointer;
+  transition: all var(--duration-fast);
+}
+.btn-scenario:hover { border-color: var(--brand); color: var(--brand); }
+.btn-scenario.active-scenario { background: var(--brand); color: #FFFFFF; border-color: var(--brand-dark); }
+
+/* Right: AI Assistant Console */
+.panel-ai-console {
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.console-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-subtle);
+}
+.console-tab {
+  flex: 1;
+  text-align: center;
+  padding: 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all var(--duration-fast);
+}
+.console-tab.active-tab { color: var(--brand); border-bottom-color: var(--brand); background: var(--surface); font-weight: 600; }
+
+.console-history {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.chat-row { display: flex; flex-direction: column; max-width: 92%; }
+.chat-row.user { align-self: flex-end; }
+.chat-row.assistant { align-self: flex-start; }
+.bubble-body {
+  padding: 9px 13px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.chat-row.user .bubble-body { background: var(--brand); color: #FFFFFF; }
+.chat-row.assistant .bubble-body { background: var(--surface-subtle); border: 1px solid var(--border); color: var(--text); }
+.bubble-tag { font-family: var(--font-mono); font-size: 9px; color: var(--text-subtle); margin-top: 3px; }
+
+.console-input-bar {
+  padding: 10px 14px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+}
+.console-input {
+  flex: 1;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--text);
+  outline: none;
+  font-family: inherit;
+}
+.console-input:focus { border-color: var(--brand); background: var(--surface); }
+
+/* Timeline Scrubbing Bar */
+.bottom-scrubber-bar {
+  height: 64px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 8px 18px;
+  flex-shrink: 0;
+}
+.scrubber-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; font-size: 11px; font-family: var(--font-mono); color: var(--text-subtle); }
+.scrubber-track {
+  position: relative;
+  height: 22px;
+  background: linear-gradient(90deg, var(--amber-bg) 0%, var(--amber-bg) 50%, var(--green-bg) 50%, var(--green-bg) 100%);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  overflow: hidden;
+}
+.scrubber-daily-marker {
+  position: absolute;
+  top: 4px;
+  width: 2px;
+  height: 14px;
+  background: var(--amber);
+  opacity: 0.7;
+  pointer-events: none;
+}
+.scrubber-playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--brand);
+  pointer-events: none;
+}
+.scrubber-knob {
+  position: absolute;
+  top: -2px;
+  left: -5px;
+  width: 12px;
+  height: 12px;
+  background: var(--brand);
+  border-radius: 50%;
+  border: 2px solid #FFFFFF;
+}
+
+/* -------------------------------------------------------------------------
+   Interactive Architecture Page ("/architecture")
+   ------------------------------------------------------------------------- */
+.arch-grid-layout {
+  display: grid;
+  grid-template-columns: 1.6fr 1.4fr;
+  gap: 24px;
+  margin-bottom: 32px;
+}
+.arch-diagram-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.arch-detail-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Budget Bars */
+.budget-pair-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-top: 32px;
+}
+.budget-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 20px;
+}
+.multi-segment-bar {
+  height: 16px;
+  border-radius: var(--radius-xs);
+  overflow: hidden;
+  display: flex;
+  margin: 12px 0;
+  border: 1px solid var(--border);
+}
+.bar-seg { height: 100%; }
+.budget-breakdown-table {
+  width: 100%;
+  font-size: 12px;
+  border-collapse: collapse;
+}
+.budget-breakdown-table td { padding: 4px 0; }
+.swatch-box { width: 8px; height: 8px; border-radius: 1px; display: inline-block; margin-right: 6px; }
+
+/* -------------------------------------------------------------------------
+   Global Footer
+   ------------------------------------------------------------------------- */
+.site-footer {
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  padding: 48px 24px 24px;
+  margin-top: auto;
+}
+.footer-wrap {
+  max-width: var(--container-max);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 36px;
+  margin-bottom: 36px;
+}
+.footer-title { font-size: 11px; font-family: var(--font-mono); font-weight: 600; text-transform: uppercase; color: var(--text); margin-bottom: 14px; letter-spacing: 0.05em; }
+.footer-nav-list { display: flex; flex-direction: column; gap: 8px; }
+.footer-nav-item { font-size: 13px; color: var(--text-muted); cursor: pointer; text-decoration: none; }
+.footer-nav-item:hover { color: var(--brand); }
+.footer-base-row {
+  max-width: var(--container-max);
+  margin: 0 auto;
+  border-top: 1px solid var(--border);
+  padding-top: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: var(--text-subtle);
+}
+
+/* -------------------------------------------------------------------------
+   Prefers-Reduced-Motion & Accessibility
+   ------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .car-stroke-art path, .car-stroke-art circle { stroke-dashoffset: 0 !important; }
+}
+
+@media (max-width: 900px) {
+  .hero-wrap, .pinpoint-layout, .arch-grid-layout, .budget-pair-grid { grid-template-columns: 1fr; }
+  .asym-grid-3, .pipeline-grid { grid-template-columns: 1fr; }
+  .demo-viewport-grid { grid-template-columns: 1fr; }
+  .panel-components, .panel-ai-console { display: none; }
+  .footer-wrap { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- GLOBAL HEADER -->
+<header class="site-header">
+  <div class="brand-lockup" onclick="navTo('/')">
+    <div class="brand-mark">V</div>
+    <div>
+      <span class="brand-name">VehicleGPT</span>
+      <span class="brand-sub">HealthEngine</span>
+    </div>
+  </div>
+
+  <nav class="nav-links">
+    <a class="nav-link" data-path="/" onclick="navTo('/')">Overview</a>
+    <a class="nav-link" data-path="/architecture" onclick="navTo('/architecture')">Architecture</a>
+    <a class="nav-link" data-path="/use-cases" onclick="navTo('/use-cases')">Use Cases</a>
+    <a class="nav-link" data-path="/privacy" onclick="navTo('/privacy')">Privacy &amp; Safety</a>
+    <a class="nav-link" data-path="/docs" onclick="navTo('/docs')">Documentation</a>
+  </nav>
+
+  <div class="header-right">
+    <button class="theme-toggle" onclick="toggleTheme()" title="Toggle Theme" id="themeBtn">
+      <svg class="icon-svg" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+    </button>
+    <button class="btn-primary" onclick="navTo('/demo')">
+      Launch Console
+    </button>
+  </div>
+</header>
+
+<main id="page-container">
+
+  <!-- =======================================================================
+       PAGE 1: OVERVIEW ("/")
+       ======================================================================= -->
+  <div id="view-home" class="page-view">
+
+    <!-- Hero Section -->
+    <section class="hero-wrap">
+      <div>
+        <span class="hero-tag">AI-on-Edge Vehicle Intelligence</span>
+        <h1>Your car, explained with precision.</h1>
+        <p class="hero-sub">
+          VehicleGPT connects directly to in-vehicle CAN buses via a passive, read-only safety diode.
+          Its on-device HealthEngine continuously tracks 34 telemetry signals, predicts failure points
+          before dashboard warning lights activate, and answers questions in under 2 seconds.
+        </p>
+        <div class="hero-cta-row">
+          <button class="btn-primary" style="padding: 10px 20px; font-size: 14px;" onclick="navTo('/demo')">
+            Launch Interactive Console
+          </button>
+          <button class="btn-ghost" style="padding: 10px 18px; font-size: 14px;" onclick="navTo('/architecture')">
+            Inspect System Architecture
+          </button>
+        </div>
+      </div>
+
+      <!-- Technical Wireframe Drawing Card -->
+      <div class="blueprint-hero-card">
+        <div class="blueprint-hero-header">
+          <span>CHASSIS TELEMETRY MAP</span>
+          <span class="numeric-val">ISO-11898-2 &middot; 500 KBPS</span>
+        </div>
+        <svg class="car-stroke-art" viewBox="0 0 680 240" fill="none" style="width: 100%; height: auto;">
+          <path d="M 60 160 C 55 140, 65 95, 130 85 C 190 70, 250 45, 340 45 C 450 45, 500 70, 550 90 C 610 105, 620 135, 615 160 C 610 175, 595 180, 560 180 C 555 145, 505 145, 500 180 L 180 180 C 175 145, 125 145, 120 180 L 75 180 C 65 180, 60 175, 60 160 Z" stroke="#0F766E" stroke-width="2"/>
+          <circle cx="150" cy="180" r="26" stroke="#0F766E" stroke-width="2.5" fill="var(--surface)"/>
+          <circle cx="530" cy="180" r="26" stroke="#0F766E" stroke-width="2.5" fill="var(--surface)"/>
+          <rect x="200" y="130" width="280" height="32" rx="4" stroke="#0F766E" stroke-width="1.2" stroke-dasharray="4 2"/>
+          <text x="340" y="151" fill="#0F766E" font-size="10" font-family="var(--font-mono)" text-anchor="middle">HV BATTERY / BMS ENCLOSURE</text>
+        </svg>
+      </div>
+    </section>
+
+    <!-- Trust Strip -->
+    <div class="trust-bar">
+      <div class="trust-row">
+        <div class="trust-fact">
+          <svg class="icon-svg" style="color:var(--brand)" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+          100% On-Device Processing
+        </div>
+        <div class="trust-fact">
+          <span class="trust-fact-val">&lt; 1.4s</span> First-Token Latency
+        </div>
+        <div class="trust-fact">
+          <span class="trust-fact-val">1.18 GB</span> Total RAM Budget
+        </div>
+        <div class="trust-fact">
+          <svg class="icon-svg" style="color:var(--green)" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+          Passive Read-Only Safety Diode
+        </div>
+        <div class="trust-fact">
+          <span class="trust-fact-val">0 KB</span> Cloud Uploads
+        </div>
+      </div>
+    </div>
+
+    <!-- Concrete Engineering Problem Statements -->
+    <section class="section-wrap">
+      <span class="section-meta">Problem Space</span>
+      <h2>Why existing vehicle diagnostics fail drivers and technicians</h2>
+      <p class="section-lead">
+        Modern electronic control units broadcast thousands of sensor frames every second.
+        Current diagnostic tools either compress this down to a single vague dashboard light or upload raw logs to distant cloud queues.
+      </p>
+
+      <div class="asym-grid-3">
+        <div class="spec-card">
+          <div class="spec-num">01 / LACK OF CONTEXT</div>
+          <div class="spec-title">Isolated Freeze-Frames</div>
+          <div class="spec-body">
+            A standard diagnostic trouble code (like P0217 for engine overtemperature) only records the instant a threshold was crossed. It preserves zero temporal context about pump pressure or battery voltage over the preceding 20 minutes.
+          </div>
+        </div>
+
+        <div class="spec-card">
+          <div class="spec-num">02 / CONNECTIVITY GAPS</div>
+          <div class="spec-title">Cloud Latency &amp; Dead Zones</div>
+          <div class="spec-body">
+            Cellular-linked telematics fail precisely when drivers need them most: in underground parking structures, remote rural highways, and mountainous mountain passes where emergency breakdowns occur.
+          </div>
+        </div>
+
+        <div class="spec-card">
+          <div class="spec-num">03 / SILOED SUBSYSTEMS</div>
+          <div class="spec-title">Uncorrelated Causal Failures</div>
+          <div class="spec-body">
+            Automotive ECUs operate independently. When an electric coolant pump drops flow by 18%, causing high-voltage battery cell temperature spikes that force inverter torque derating, no single controller correlates the chain.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4-Step Technical Pipeline -->
+    <section class="section-wrap" style="background: var(--surface-subtle); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);">
+      <span class="section-meta">Data Pipeline</span>
+      <h2>Four continuous stages of localized processing</h2>
+      <p class="section-lead">
+        Running on an in-vehicle compute node (Raspberry Pi 5 with AI accelerator, NXP S32G, or Cockpit HPC),
+        the pipeline operates without interrupting real-time automotive bus traffic.
+      </p>
+
+      <div class="pipeline-grid">
+        <div class="pipeline-step">
+          <span class="step-index">01 / COLLECT</span>
+          <div class="step-title">Passive Frame Ingestion</div>
+          <div class="step-desc">
+            Sniffs raw broadcast frames at up to 1 Mbit/s through a hardware-isolated, receive-only differential transceiver.
+          </div>
+          <div class="step-tags">
+            <span class="tag-badge">CAN-FD</span>
+            <span class="tag-badge">SOME/IP</span>
+            <span class="tag-badge">J1939</span>
+          </div>
+        </div>
+
+        <div class="pipeline-step">
+          <span class="step-index">02 / BUFFER</span>
+          <div class="step-title">Multi-Tier Memory</div>
+          <div class="step-desc">
+            Maintains high-frequency in-memory ring buffers for instant recall and downsamples statistical baselines for multi-week comparisons.
+          </div>
+          <div class="step-tags">
+            <span class="tag-badge">Hot Buffer (10s)</span>
+            <span class="tag-badge">Warm SQLite (24h)</span>
+          </div>
+        </div>
+
+        <div class="pipeline-step">
+          <span class="step-index">03 / EVALUATE</span>
+          <div class="step-title">HealthEngine Core</div>
+          <div class="step-desc">
+            Applies exponentially weighted moving averages (EWMA) and Z-score deviation algorithms across 9 component subsystems simultaneously.
+          </div>
+          <div class="step-tags">
+            <span class="tag-badge">EWMA (α=0.25)</span>
+            <span class="tag-badge">Z-Score &gt; 2.5σ</span>
+          </div>
+        </div>
+
+        <div class="pipeline-step">
+          <span class="step-index">04 / SYNTHESIZE</span>
+          <div class="step-title">Localized SLM Inference</div>
+          <div class="step-desc">
+            A 4-bit quantized Small Language Model synthesizes HealthEngine findings into grounded, natural explanations with exact citations.
+          </div>
+          <div class="step-tags">
+            <span class="tag-badge">1–3B Quantized</span>
+            <span class="tag-badge">Zero Hallucinations</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Predict & Pinpoint Sequence -->
+    <section class="section-wrap">
+      <span class="section-meta">Diagnostic Story</span>
+      <h2>Predict before threshold breach. Pinpoint the root cause.</h2>
+      
+      <div class="pinpoint-layout">
+        <div class="timeline-story">
+          <div class="story-item">
+            <div class="story-marker"></div>
+            <div class="story-time">T - 30 MIN &middot; NOMINAL BASELINE</div>
+            <div class="story-head">Steady Highway Cruising</div>
+            <div class="story-detail">
+              Vehicle operating at 110 kph. Coolant temperature at 88°C, battery rail at 13.8V. HealthEngine computes normal Z-score envelope across all 9 components.
+            </div>
+          </div>
+
+          <div class="story-item watch">
+            <div class="story-marker"></div>
+            <div class="story-time">T - 12 MIN &middot; WATCH THRESHOLD</div>
+            <div class="story-head">Thermal Slope Anomaly Detected</div>
+            <div class="story-detail">
+              Coolant temperature begins climbing at +2.1°C per 10 minutes despite flat engine RPM. HealthEngine flags a thermal dissipation divergence.
+            </div>
+          </div>
+
+          <div class="story-item critical">
+            <div class="story-marker"></div>
+            <div class="story-time">T - 0 MIN &middot; ROOT CAUSE PINPOINTED</div>
+            <div class="story-head">Multi-Subsystem Causal Derate</div>
+            <div class="story-detail">
+              Coolant reaches 104°C, triggering thermal throttling in the electric motor to protect the inverter. System advises driver 4 minutes before boiling over.
+            </div>
+          </div>
+        </div>
+
+        <div class="root-cause-card">
+          <div style="font-family:var(--font-mono); font-size:11px; font-weight:600; text-transform:uppercase; color:var(--text-subtle);">
+            Correlated Root Cause Chain
+          </div>
+          <div class="chain-node">
+            <strong>Thermal Management:</strong> Coolant flow restriction detected (Z-Score +2.6σ)
+          </div>
+          <div class="chain-arrow">&darr;</div>
+          <div class="chain-node critical">
+            <strong>Battery Subsystem:</strong> Cell thermal dissipation impaired; charging rail derated
+          </div>
+          <div class="chain-arrow">&darr;</div>
+          <div class="chain-node">
+            <strong>Powertrain Inverter:</strong> Torque limited to avoid stator thermal saturation
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Embedded Live Assistant Widget -->
+    <section class="section-wrap" style="background: var(--surface-subtle); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);">
+      <span class="section-meta">Live Test Console</span>
+      <h2>Ask the on-device engine directly</h2>
+      <p class="section-lead">
+        Query the active telemetry stream or ask general automotive principles.
+        Notice that general queries return direct factual answers without inventing fake vehicle readings.
+      </p>
+
+      <div class="demo-box">
+        <div class="demo-chips-row">
+          <button class="demo-chip" onclick="askMini('Why has my driving range reduced over the last two weeks?')">
+            Why has driving range reduced?
+          </button>
+          <button class="demo-chip" onclick="askMini('Explain regenerative braking')">
+            Explain regenerative braking
+          </button>
+          <button class="demo-chip" onclick="askMini('What is the capital of France?')">
+            What is the capital of France?
+          </button>
+        </div>
+
+        <div class="demo-console" id="miniConsole">
+          <div class="chat-entry assistant">
+            <div class="chat-bubble">
+              VehicleGPT HealthEngine is streaming live telemetry. You can ask for live sensor readings, diagnostic explanations, or general automotive principles.
+            </div>
+            <div class="chat-meta">LOCAL ENGINE &middot; READY</div>
+          </div>
+        </div>
+
+        <div class="demo-input-row">
+          <input type="text" id="miniField" class="demo-text-field" placeholder="Type a diagnostic question..." onkeydown="if(event.key==='Enter') runMini();">
+          <button class="btn-primary" onclick="runMini()" id="miniSubmit">Submit</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Hardware Targets Table -->
+    <section class="section-wrap">
+      <span class="section-meta">Edge Platforms</span>
+      <h2>Hardware scalability and memory footprint</h2>
+      
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Hardware Target</th>
+            <th>Deployment Context</th>
+            <th>Model Size</th>
+            <th>Memory Budget</th>
+            <th>Inference Latency</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Raspberry Pi 5 + AI HAT</strong></td>
+            <td>Aftermarket OBD-II dongles / Prototype bench</td>
+            <td>1.5B (Q4_K_M)</td>
+            <td class="numeric-val">1.25 GB / 2.0 GB</td>
+            <td class="numeric-val">~1.3 s</td>
+          </tr>
+          <tr>
+            <td><strong>Cuttlefish / QEMU</strong></td>
+            <td>Automotive virtual testing (AOSP / QNX)</td>
+            <td>3.2B (Q4_K_M)</td>
+            <td class="numeric-val">1.75 GB / 4.0 GB</td>
+            <td class="numeric-val">~0.9 s</td>
+          </tr>
+          <tr>
+            <td><strong>AWS Graviton ARM64</strong></td>
+            <td>Cloud vehicle shadow digital twins</td>
+            <td>7B (Q4_K_M)</td>
+            <td class="numeric-val">3.60 GB / 8.0 GB</td>
+            <td class="numeric-val">~0.6 s</td>
+          </tr>
+          <tr>
+            <td><strong>Automotive Cockpit HPC (Snapdragon / Orin)</strong></td>
+            <td>Production Tier-1 domain controller</td>
+            <td>3B–7B NPU-optimized</td>
+            <td class="numeric-val">1.90 GB / 16.0 GB</td>
+            <td class="numeric-val">&lt; 0.4 s</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- FAQ Accordion -->
+    <section class="section-wrap" style="border-top: 1px solid var(--border);">
+      <span class="section-meta">Technical Questions</span>
+      <h2>Frequently asked engineering questions</h2>
+
+      <div class="faq-wrap">
+        <div class="faq-row open">
+          <div class="faq-head" onclick="toggleFaqRow(this)">
+            How does the system ensure safety isolation on the CAN bus?
+            <span class="faq-chevron">&darr;</span>
+          </div>
+          <div class="faq-content">
+            VehicleGPT attaches to the vehicle network through a physical receive-only data diode. The transceiver's transmit pin is physically tied high or disabled in silicon. The operating system socket is initialized with read-only flags (CAN_RAW_RECV_OWN_MSGS=0), mathematically preventing the inference stack from transmitting actuation frames to steering, braking, or powertrain controllers.
+          </div>
+        </div>
+
+        <div class="faq-row">
+          <div class="faq-head" onclick="toggleFaqRow(this)">
+            How does HealthEngine stay within the strict 2.0 GB RAM budget?
+            <span class="faq-chevron">&darr;</span>
+          </div>
+          <div class="faq-content">
+            The mathematical tracking core (HealthEngine) computes rolling statistics, slopes, and Z-scores using compact C-vectorized circular buffers taking less than 40 MB of RAM. The 4-bit quantized language model occupies 1.18 GB of memory, leaving ample headroom within a standard 2 GB edge allocation.
+          </div>
+        </div>
+
+        <div class="faq-row">
+          <div class="faq-head" onclick="toggleFaqRow(this)">
+            What happens when the driver asks general, non-car questions?
+            <span class="faq-chevron">&darr;</span>
+          </div>
+          <div class="faq-content">
+            The intent classifier detects general queries (e.g., "What is the capital of France?" or "Explain regenerative braking") and routes them directly to the on-device language model without appending vehicle sensor context. This avoids embarrassing hallucinations where a car tries to answer geography questions using battery voltage readings.
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- =======================================================================
+       PAGE 2: INTERACTIVE PRODUCT DEMO ("/demo")
+       ======================================================================= -->
+  <div id="view-demo" class="page-view">
+    <div class="demo-chrome-bar">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span onclick="navTo('/')" style="cursor:pointer; color:var(--brand); font-weight:600;">&larr; Overview</span>
+        <span style="color:var(--text-subtle);">/</span>
+        <span style="font-weight:600;">Live HealthEngine Digital Twin</span>
+      </div>
+      <div style="display:flex; gap:16px; align-items:center; font-family:var(--font-mono);">
+        <button class="btn-ghost" onclick="toggleRetentionDrawer()" style="padding:4px 10px; font-size:11px;" title="Inspect Tiered Storage & Compaction">
+          <span>💾 Data Retention</span>
+        </button>
+        <span>DIODE: <strong style="color:var(--green)">READ-ONLY</strong></span>
+        <span>RAM: <strong class="numeric-val">1.18 GB / 2.0 GB</strong></span>
+        <span>LATENCY: <strong class="numeric-val">&lt; 1.4s</strong></span>
+      </div>
+    </div>
+
+    <!-- Data Retention Slide-out Panel -->
+    <div id="retentionDrawer" style="display:none; background:var(--surface); border-bottom:1px solid var(--border); padding:16px 20px; box-shadow:0 4px 12px rgba(0,0,0,0.06); animation:pageEntrance 0.2s var(--ease-out);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <div>
+          <h3 style="font-size:15px; margin-bottom:2px;">Tiered Storage &amp; Compaction Status</h3>
+          <span style="font-size:11px; color:var(--text-muted); font-family:var(--font-mono);">SQLite WAL Mode &middot; Zero Cloud Uploads</span>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn-ghost" onclick="triggerCompactionNow()" id="btnCompactNow" style="font-size:11px; padding:4px 10px;">
+            ⚡ Run Compaction Now
+          </button>
+          <button class="btn-primary" onclick="triggerFastForward30()" id="btnFastForward" style="font-size:11px; padding:4px 10px;">
+            ⏩ Fast-Forward 30 Days
+          </button>
+          <button class="btn-ghost" onclick="toggleRetentionDrawer()" style="font-size:11px; padding:4px 8px;">✕</button>
+        </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:12px; font-size:12px;">
+        <div style="background:var(--surface-subtle); border:1px solid var(--border); padding:10px; border-radius:var(--radius-xs);">
+          <div style="font-family:var(--font-mono); font-size:10px; text-transform:uppercase; color:var(--brand);">Tier 1: Raw Samples</div>
+          <div style="font-size:16px; font-weight:700; font-family:var(--font-mono); margin:4px 0;" id="statRawCount">0</div>
+          <div style="color:var(--text-muted); font-size:11px;" id="statRawStorage">Rolling 15 days &middot; 5-second samples</div>
+        </div>
+
+        <div style="background:var(--surface-subtle); border:1px solid var(--border); padding:10px; border-radius:var(--radius-xs);">
+          <div style="font-family:var(--font-mono); font-size:10px; text-transform:uppercase; color:var(--amber);">Tier 2: Daily Summaries</div>
+          <div style="font-size:16px; font-weight:700; font-family:var(--font-mono); margin:4px 0;" id="statSummaryCount">0</div>
+          <div style="color:var(--text-muted); font-size:11px;" id="statSummaryStorage">12+ months &middot; Min/Max/Mean/P95/Slopes</div>
+        </div>
+
+        <div style="background:var(--surface-subtle); border:1px solid var(--border); padding:10px; border-radius:var(--radius-xs);">
+          <div style="font-family:var(--font-mono); font-size:10px; text-transform:uppercase; color:var(--blue);">Tier 3: Events &amp; DTCs</div>
+          <div style="font-size:16px; font-weight:700; font-family:var(--font-mono); margin:4px 0;" id="statEventCount">0</div>
+          <div style="color:var(--text-muted); font-size:11px;" id="statEventStorage">Kept forever &middot; +/- 60s freeze frames</div>
+        </div>
+
+        <div style="background:var(--surface-subtle); border:1px solid var(--border); padding:10px; border-radius:var(--radius-xs);">
+          <div style="font-family:var(--font-mono); font-size:10px; text-transform:uppercase; color:var(--text);">Searchable window</div>
+          <div style="font-size:16px; font-weight:700; font-family:var(--font-mono); margin:4px 0;" id="statDbSize">0 days</div>
+          <div style="color:var(--text-muted); font-size:11px;" id="statLastCompaction">Last / next compaction: Idle</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="demo-viewport-grid">
+      
+      <!-- Left: Component Health Overview -->
+      <div class="panel-components">
+        <div class="panel-title-bar">
+          <span>Component Health</span>
+          <span style="color:var(--text-subtle); font-family:var(--font-mono);" id="compCountBadge">9 Monitored</span>
+        </div>
+        <div class="comp-list-scroll" id="compContainer">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <!-- Center: Visual Telemetry Canvas -->
+      <div class="panel-center-telemetry">
+        
+        <div class="health-overview-strip">
+          <div class="radial-score-box">
+            <svg width="74" height="74">
+              <circle cx="37" cy="37" r="30" stroke="var(--border)" stroke-width="5" fill="none"></circle>
+              <circle id="scoreRing" cx="37" cy="37" r="30" stroke="var(--green)" stroke-width="5" fill="none"
+                      stroke-dasharray="188.5" stroke-dashoffset="0" stroke-linecap="round"></circle>
+            </svg>
+            <div class="radial-score-text">
+              <div class="radial-num" id="healthScoreNum">100</div>
+              <div class="radial-sub">HEALTH</div>
+            </div>
+          </div>
+
+          <div>
+            <h3 id="healthStatusTitle" style="font-size:16px; margin-bottom:2px;">All Subsystems Nominal</h3>
+            <p id="healthStatusSub" style="font-size:12px; color:var(--text-muted);">
+              34 CAN-FD signals within standard operational envelopes. Zero active trouble codes.
+            </p>
+          </div>
+
+          <div class="vitals-quad">
+            <div class="vital-tile">
+              <div class="vital-label">Speed</div>
+              <div class="vital-figure"><span id="valSpeed" class="numeric-val">0.0</span> <small>kph</small></div>
+            </div>
+            <div class="vital-tile">
+              <div class="vital-label">RPM</div>
+              <div class="vital-figure"><span id="valRpm" class="numeric-val">0</span> <small>rpm</small></div>
+            </div>
+            <div class="vital-tile">
+              <div class="vital-label">Coolant</div>
+              <div class="vital-figure"><span id="valTemp" class="numeric-val">88</span> <small>&deg;C</small></div>
+            </div>
+            <div class="vital-tile">
+              <div class="vital-label">12V Rail</div>
+              <div class="vital-figure"><span id="valVolt" class="numeric-val">13.8</span> <small>V</small></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Causal Chain Box -->
+        <div class="causal-display-box" id="causalDisplay">
+          <div class="causal-display-title">Correlated Subsystem Causal Sequence</div>
+          <div class="causal-steps-strip" id="causalStepsContainer"></div>
+        </div>
+
+        <!-- Technical Twin Viewport -->
+        <div class="twin-stage">
+          <div class="twin-stage-top">
+            <span>TECHNICAL DIGITAL TWIN &middot; SUBSYSTEM HOTSPOTS</span>
+            <span class="numeric-val">ACTIVE STREAM: PASSIVE</span>
+          </div>
+
+          <div class="car-blueprint-viewport">
+            <svg viewBox="0 0 680 240" fill="none" style="width: 85%; height: auto;">
+              <path d="M 60 160 C 55 140, 65 95, 130 85 C 190 70, 250 45, 340 45 C 450 45, 500 70, 550 90 C 610 105, 620 135, 615 160 C 610 175, 595 180, 560 180 C 555 145, 505 145, 500 180 L 180 180 C 175 145, 125 145, 120 180 L 75 180 C 65 180, 60 175, 60 160 Z" stroke="#334155" stroke-width="2" fill="var(--surface)"/>
+              <circle cx="150" cy="180" r="26" stroke="#334155" stroke-width="2.5" fill="#FFFFFF"/>
+              <circle cx="530" cy="180" r="26" stroke="#334155" stroke-width="2.5" fill="#FFFFFF"/>
+              <rect x="200" y="130" width="280" height="32" rx="4" stroke="#64748B" stroke-width="1.2" stroke-dasharray="4 2"/>
+              <text x="340" y="151" fill="#64748B" font-size="9" font-family="var(--font-mono)" text-anchor="middle">HV BATTERY / BMS ENCLOSURE</text>
+            </svg>
+
+            <!-- 9 Hotspots -->
+            <div class="hotspot-node" id="spot-battery" style="left:50%; top:58%;" onclick="selectComponent('battery')" title="Battery &amp; BMS">1</div>
+            <div class="hotspot-node" id="spot-powertrain" style="left:23%; top:52%;" onclick="selectComponent('powertrain')" title="Powertrain">2</div>
+            <div class="hotspot-node" id="spot-cooling" style="left:16%; top:48%;" onclick="selectComponent('cooling')" title="Thermal Management">3</div>
+            <div class="hotspot-node" id="spot-brakes" style="left:27%; top:72%;" onclick="selectComponent('brakes')" title="Brakes &amp; ABS">4</div>
+            <div class="hotspot-node" id="spot-tyres" style="left:78%; top:72%;" onclick="selectComponent('tyres')" title="Tyres &amp; TPMS">5</div>
+            <div class="hotspot-node" id="spot-adas" style="left:85%; top:46%;" onclick="selectComponent('adas')" title="ADAS &amp; Radar">6</div>
+            <div class="hotspot-node" id="spot-body" style="left:60%; top:38%;" onclick="selectComponent('body')" title="Body &amp; Closures">7</div>
+            <div class="hotspot-node" id="spot-electrical" style="left:36%; top:42%;" onclick="selectComponent('electrical')" title="12V Auxiliary">8</div>
+            <div class="hotspot-node" id="spot-infotainment" style="left:48%; top:35%;" onclick="selectComponent('infotainment')" title="Gateway Bus">9</div>
+          </div>
+        </div>
+
+        <!-- Scenario Injector -->
+        <div class="scenario-button-row">
+          <span class="scenario-title-label">Simulate Failure:</span>
+          <button class="btn-scenario active-scenario" onclick="applyScenario('normal')">Nominal Run</button>
+          <button class="btn-scenario" onclick="applyScenario('battery_overheat')">Battery Overheat</button>
+          <button class="btn-scenario" onclick="applyScenario('coolant_leak')">Coolant Leak</button>
+          <button class="btn-scenario" onclick="applyScenario('highway_loss')">Highway Range Loss</button>
+          <button class="btn-scenario" onclick="applyScenario('brake_wear')">Brake Pad Degradation</button>
+          <button class="btn-scenario" onclick="applyScenario('adas_disengage')">ADAS Disengage</button>
+        </div>
+
+      </div>
+
+      <!-- Right: Natural Language Diagnostic Console -->
+      <div class="panel-ai-console">
+        <div class="console-tabs">
+          <div class="console-tab active-tab">Diagnostic Console</div>
+        </div>
+
+        <div class="console-history" id="consoleChat">
+          <div class="chat-row assistant">
+            <div class="bubble-body">
+              VehicleGPT HealthEngine active. All 9 component telemetry feeds are updating in real time.
+              Ask any diagnostic question or simulate a failure to observe causal analysis.
+            </div>
+            <div class="bubble-tag">ON-DEVICE SLM &middot; NOMINAL</div>
+          </div>
+        </div>
+
+        <div class="console-input-bar">
+          <input type="text" id="consoleField" class="console-input" placeholder="Ask a diagnostic question..." onkeydown="if(event.key==='Enter') sendConsoleQuery();">
+          <button class="btn-primary" onclick="sendConsoleQuery()" id="consoleSubmitBtn" style="padding: 7px 12px;">
+            Send
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Bottom Scrubber Bar -->
+    <div class="bottom-scrubber-bar">
+      <div class="scrubber-header">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span>TIME MACHINE · TIMELINE SCRUBBER</span>
+          <span id="tierBadge" style="font-size:10px; padding:1px 6px; border-radius:3px; background:var(--green-bg); color:var(--green); border:1px solid var(--green-border);">
+            Tier 1: Raw 5s Detail
+          </span>
+        </div>
+        <span id="scrubberLabel">LIVE (NOW)</span>
+      </div>
+      <div class="scrubber-track" id="scrubberTrack" onclick="scrubTimeline(event)">
+        <div id="scrubberMarkers"></div>
+        <div class="scrubber-playhead" id="playhead" style="left: 100%;">
+          <div class="scrubber-knob"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =======================================================================
+       PAGE 3: ARCHITECTURE ("/architecture")
+       ======================================================================= -->
+  <div id="view-architecture" class="page-view">
+    <section class="section-wrap">
+      <span class="section-meta">System Specifications</span>
+      <h2>Architecture &amp; Resource Allocation</h2>
+      <p class="section-lead">
+        A deterministic single-engine architecture separating safety-critical vehicle buses from the local language model.
+      </p>
+
+      <div class="arch-grid-layout">
+        <!-- Interactive SVG Diagram -->
+        <div class="arch-diagram-card">
+          <span style="font-family:var(--font-mono); font-size:11px; text-transform:uppercase; color:var(--text-subtle);">
+            Click any block to inspect technology rationale
+          </span>
+
+          <svg viewBox="0 0 500 340" fill="none" style="width:100%; height:auto;">
+            <!-- Box 1: CAN Ingestion -->
+            <rect x="20" y="20" width="130" height="60" rx="4" fill="var(--surface-subtle)" stroke="#0F766E" stroke-width="1.5" style="cursor:pointer;" onclick="showArchInfo('ingestion')"/>
+            <text x="85" y="46" fill="var(--text)" font-size="12" font-weight="600" text-anchor="middle">CAN/CAN-FD Ingestion</text>
+            <text x="85" y="62" fill="var(--text-subtle)" font-size="9" font-family="var(--font-mono)" text-anchor="middle">500k-5Mbps Frame Parser</text>
+
+            <!-- Arrow to Diode -->
+            <path d="M 150 50 L 185 50" stroke="#15803D" stroke-width="2" stroke-dasharray="3 2"/>
+
+            <!-- Box 2: Safety Diode -->
+            <rect x="190" y="20" width="130" height="60" rx="4" fill="var(--green-bg)" stroke="#15803D" stroke-width="1.5" style="cursor:pointer;" onclick="showArchInfo('diode')"/>
+            <text x="255" y="46" fill="#14532D" font-size="12" font-weight="600" text-anchor="middle">Safety Data Diode</text>
+            <text x="255" y="62" fill="#166534" font-size="9" font-family="var(--font-mono)" text-anchor="middle">Read-Only Hardware Tap</text>
+
+            <!-- Arrow to Storage -->
+            <path d="M 320 50 L 355 50" stroke="#0F766E" stroke-width="2"/>
+
+            <!-- Box 3: Storage -->
+            <rect x="360" y="20" width="120" height="60" rx="4" fill="var(--surface-subtle)" stroke="#0F766E" stroke-width="1.5" style="cursor:pointer;" onclick="showArchInfo('storage')"/>
+            <text x="420" y="46" fill="var(--text)" font-size="12" font-weight="600" text-anchor="middle">Multi-Tier Storage</text>
+            <text x="420" y="62" fill="var(--text-subtle)" font-size="9" font-family="var(--font-mono)" text-anchor="middle">Hot Ring &amp; SQLite</text>
+
+            <!-- Downward arrow to HealthEngine -->
+            <path d="M 420 80 L 420 130" stroke="#0F766E" stroke-width="2"/>
+
+            <!-- Box 4: Unified HealthEngine -->
+            <rect x="60" y="130" width="420" height="70" rx="4" fill="var(--surface)" stroke="#0F766E" stroke-width="2" style="cursor:pointer;" onclick="showArchInfo('engine')"/>
+            <text x="270" y="158" fill="var(--text)" font-size="13" font-weight="600" text-anchor="middle">Unified HealthEngine Core</text>
+            <text x="270" y="176" fill="var(--text-muted)" font-size="10" text-anchor="middle">Declarative component rules &middot; Rolling EWMA &middot; Z-score anomaly &middot; Causal correlation</text>
+            <text x="270" y="190" fill="#0F766E" font-size="9" font-family="var(--font-mono)" text-anchor="middle">&lt; 40 MB RAM &middot; Continuous Background Loop</text>
+
+            <!-- Downward arrow to SLM -->
+            <path d="M 270 200 L 270 240" stroke="#0F766E" stroke-width="2"/>
+
+            <!-- Box 5: SLM -->
+            <rect x="60" y="240" width="420" height="70" rx="4" fill="var(--brand-light)" stroke="#0F766E" stroke-width="2" style="cursor:pointer;" onclick="showArchInfo('slm')"/>
+            <text x="270" y="268" fill="var(--brand-dark)" font-size="13" font-weight="600" text-anchor="middle">On-Device Language Model (1–3B Quantized)</text>
+            <text x="270" y="286" fill="var(--text-muted)" font-size="10" text-anchor="middle">Intent router &middot; Telemetry grounding &middot; Plain language explanation synthesis</text>
+            <text x="270" y="300" fill="var(--brand)" font-size="9" font-family="var(--font-mono)" text-anchor="middle">1.18 GB Memory Footprint &middot; &lt; 1.4s Time-to-First-Token</text>
+          </svg>
+        </div>
+
+        <!-- Block Inspector Card -->
+        <div class="arch-detail-card" id="archInspector">
+          <div style="font-family:var(--font-mono); font-size:11px; text-transform:uppercase; color:var(--brand);">
+            Selected Architectural Component
+          </div>
+          <h3 id="archNodeTitle" style="font-size:18px;">Unified HealthEngine Core</h3>
+          <div>
+            <span style="font-size:11px; font-family:var(--font-mono); text-transform:uppercase; color:var(--text-subtle);">Purpose</span>
+            <p id="archNodePurpose" style="font-size:13px; color:var(--text); margin-top:2px;">
+              Consolidates all rolling-window trend math, threshold checks, and failure estimations into a single deterministic execution cycle.
+            </p>
+          </div>
+          <div>
+            <span style="font-size:11px; font-family:var(--font-mono); text-transform:uppercase; color:var(--text-subtle);">Implementation</span>
+            <p id="archNodeTech" style="font-size:13px; font-family:var(--font-mono); color:var(--text-muted); margin-top:2px;">
+              Python with C-vectorized mathematical loops (EWMA α=0.25, rolling slope).
+            </p>
+          </div>
+          <div>
+            <span style="font-size:11px; font-family:var(--font-mono); text-transform:uppercase; color:var(--text-subtle);">Safety &amp; Resource Justification</span>
+            <p id="archNodeJust" style="font-size:13px; color:var(--text-muted); margin-top:2px;">
+              Avoids the memory and scheduling overhead of separate background processes. Operates deterministically in under 40 MB of RAM.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Latency & Memory Budgets -->
+      <div class="budget-pair-grid">
+        <div class="budget-box">
+          <h3 style="font-size:15px; margin-bottom:4px;">Inference Latency Budget</h3>
+          <span style="font-size:12px; color:var(--text-subtle); font-family:var(--font-mono);">BUDGET: &lt; 2.0 SECONDS</span>
+          
+          <div class="multi-segment-bar">
+            <div class="bar-seg" style="width:5%; background:#0F766E;" title="CAN Ingestion: 50ms"></div>
+            <div class="bar-seg" style="width:8%; background:#14B8A6;" title="HealthEngine Math: 110ms"></div>
+            <div class="bar-seg" style="width:7%; background:#D97706;" title="Context Assembly: 80ms"></div>
+            <div class="bar-seg" style="width:72%; background:#1D4ED8;" title="First Token Generation: 1.1s"></div>
+            <div class="bar-seg" style="width:8%; background:#15803D;" title="UI Rendering: 50ms"></div>
+          </div>
+
+          <table class="budget-breakdown-table">
+            <tr>
+              <td><span class="swatch-box" style="background:#0F766E;"></span> CAN Ingestion</td>
+              <td style="text-align:right;" class="numeric-val">50 ms</td>
+            </tr>
+            <tr>
+              <td><span class="swatch-box" style="background:#14B8A6;"></span> HealthEngine Math</td>
+              <td style="text-align:right;" class="numeric-val">110 ms</td>
+            </tr>
+            <tr>
+              <td><span class="swatch-box" style="background:#D97706;"></span> Context Formatting</td>
+              <td style="text-align:right;" class="numeric-val">80 ms</td>
+            </tr>
+            <tr>
+              <td><span class="swatch-box" style="background:#1D4ED8;"></span> Local SLM First Token</td>
+              <td style="text-align:right;" class="numeric-val">1,120 ms</td>
+            </tr>
+          </table>
+        </div>
+
+        <div class="budget-box">
+          <h3 style="font-size:15px; margin-bottom:4px;">Edge Memory Allocation</h3>
+          <span style="font-size:12px; color:var(--text-subtle); font-family:var(--font-mono);">BUDGET: &lt; 2.0 GB TOTAL RAM</span>
+
+          <div class="multi-segment-bar">
+            <div class="bar-seg" style="width:59%; background:#1D4ED8;" title="4-Bit SLM: 1.18 GB"></div>
+            <div class="bar-seg" style="width:17%; background:#0F766E;" title="Telemetry Storage: 340 MB"></div>
+            <div class="bar-seg" style="width:3%; background:#15803D;" title="HealthEngine: 40 MB"></div>
+            <div class="bar-seg" style="width:9%; background:#D97706;" title="Web Server: 180 MB"></div>
+            <div class="bar-seg" style="width:12%; background:#6B7280;" title="Safety Headroom: 260 MB"></div>
+          </div>
+
+          <table class="budget-breakdown-table">
+            <tr>
+              <td><span class="swatch-box" style="background:#1D4ED8;"></span> 4-bit Quantized Language Model</td>
+              <td style="text-align:right;" class="numeric-val">1,180 MB</td>
+            </tr>
+            <tr>
+              <td><span class="swatch-box" style="background:#0F766E;"></span> In-Memory Ring Buffers &amp; SQLite</td>
+              <td style="text-align:right;" class="numeric-val">340 MB</td>
+            </tr>
+            <tr>
+              <td><span class="swatch-box" style="background:#15803D;"></span> HealthEngine Logic Core</td>
+              <td style="text-align:right;" class="numeric-val">40 MB</td>
+            </tr>
+            <tr>
+              <td><span class="swatch-box" style="background:#6B7280;"></span> System Headroom</td>
+              <td style="text-align:right;" class="numeric-val">260 MB</td>
+            </tr>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- =======================================================================
+       PAGE 4: USE CASES ("/use-cases")
+       ======================================================================= -->
+  <div id="view-use-cases" class="page-view">
+    <section class="section-wrap">
+      <span class="section-meta">Operational Contexts</span>
+      <h2>Tailored workflows across automotive roles</h2>
+      <p class="section-lead">
+        VehicleGPT adjusts diagnostic technicality and telemetry depth depending on the operational persona.
+      </p>
+
+      <div class="asym-grid-3">
+        <div class="spec-card">
+          <div class="spec-num">ROLE 01</div>
+          <div class="spec-title">Daily Driver</div>
+          <div class="spec-body" style="margin-bottom:14px;">
+            Plain-English summaries of vehicle health, range predictions factoring in ambient temperature, and early precautions before highway departures.
+          </div>
+          <button class="btn-ghost" style="margin-top:auto;" onclick="navTo('/demo'); askMini('Why has my driving range reduced over the last two weeks?');">
+            Try Driver Query &rarr;
+          </button>
+        </div>
+
+        <div class="spec-card">
+          <div class="spec-num">ROLE 02</div>
+          <div class="spec-title">Service Technician</div>
+          <div class="spec-body" style="margin-bottom:14px;">
+            Correlated Diagnostic Trouble Codes (DTCs), sensor drift rates, freeze-frame inspection, and multi-subsystem root cause sequencing.
+          </div>
+          <button class="btn-ghost" style="margin-top:auto;" onclick="navTo('/demo'); askMini('What happened before the battery overheating warning?');">
+            Try Diagnostic Query &rarr;
+          </button>
+        </div>
+
+        <div class="spec-card">
+          <div class="spec-num">ROLE 03</div>
+          <div class="spec-title">Fleet Operations</div>
+          <div class="spec-body" style="margin-bottom:14px;">
+            Predictive brake pad replacement scheduling, tyre pressure degradation alerts, and roadside breakdown risk scoring across vehicles.
+          </div>
+          <button class="btn-ghost" style="margin-top:auto;" onclick="navTo('/demo'); askMini('Show all ADAS disengagement events');">
+            Try Fleet Query &rarr;
+          </button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- =======================================================================
+       PAGE 5: PRIVACY & SAFETY ("/privacy")
+       ======================================================================= -->
+  <div id="view-privacy" class="page-view">
+    <section class="section-wrap">
+      <span class="section-meta">Safety Architecture</span>
+      <h2>Zero-cloud privacy and functional safety isolation</h2>
+      <p class="section-lead">
+        Automotive systems cannot compromise on functional safety. VehicleGPT implements rigorous hardware and logical boundaries.
+      </p>
+
+      <div class="asym-grid-3">
+        <div class="spec-card">
+          <div class="spec-num">BOUNDARY 01</div>
+          <div class="spec-title">Receive-Only Data Diode</div>
+          <div class="spec-body">
+            The CAN/CAN-FD physical transceiver has its transmit pin tied to logic high. The software layer cannot physically inject frames onto the bus, guaranteeing zero interference with ISO 26262 ASIL-D safety systems.
+          </div>
+        </div>
+
+        <div class="spec-card">
+          <div class="spec-num">BOUNDARY 02</div>
+          <div class="spec-title">Zero Cloud Transmission</div>
+          <div class="spec-body">
+            Every telemetry frame, statistical buffer, and language model weight resides exclusively in onboard storage. Telemetry, GPS coordinates, and diagnostic queries never leave the vehicle.
+          </div>
+        </div>
+
+        <div class="spec-card">
+          <div class="spec-num">BOUNDARY 03</div>
+          <div class="spec-title">Encrypted Local Persistence</div>
+          <div class="spec-body">
+            Historical trip logs are stored in AES-256 encrypted SQLite databases keyed to the vehicle's onboard Hardware Security Module (HSM).
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- =======================================================================
+       PAGE 6: DOCUMENTATION ("/docs")
+       ======================================================================= -->
+  <div id="view-docs" class="page-view">
+    <section class="section-wrap">
+      <span class="section-meta">Developer Guide</span>
+      <h2>Documentation &amp; API Reference</h2>
+      
+      <div style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-md); padding:24px; margin-bottom:24px;">
+        <h3 style="margin-bottom:12px;">Quickstart: Local Run</h3>
+        <p style="font-size:13px; color:var(--text-muted); margin-bottom:12px;">
+          Execute the simulated telemetry engine and local HTTP/SSE server:
+        </p>
+        <pre style="background:var(--surface-subtle); border:1px solid var(--border); padding:12px; border-radius:var(--radius-xs); font-family:var(--font-mono); font-size:12px; overflow-x:auto;">
+git clone https://github.com/example/vehiclegpt.git
+cd vehiclegpt
+python -m venv venv
+.\venv\Scripts\activate
+pip install -e .
+peykan.exe demo --port 6278</pre>
+      </div>
+
+      <div style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-md); padding:24px;">
+        <h3 style="margin-bottom:12px;">HTTP &amp; SSE Endpoints</h3>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Method</th>
+              <th>Endpoint</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>GET</code></td>
+              <td><code>/dashboard/stream</code></td>
+              <td>SSE stream emitting vehicle snapshots every 500ms.</td>
+            </tr>
+            <tr>
+              <td><code>POST</code></td>
+              <td><code>/dashboard/query</code></td>
+              <td>Receives JSON <code>{"query": "..."}</code> and executes on-device reasoning.</td>
+            </tr>
+            <tr>
+              <td><code>GET</code></td>
+              <td><code>/api/components</code></td>
+              <td>Returns health scores, statuses, and signals for all 9 components.</td>
+            </tr>
+            <tr>
+              <td><code>POST</code></td>
+              <td><code>/api/scenarios</code></td>
+              <td>Injects failure profiles (<code>battery_overheat</code>, <code>coolant_leak</code>).</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <!-- =======================================================================
+       PAGE 7: 404 NOT FOUND
+       ======================================================================= -->
+  <div id="view-404" class="page-view">
+    <section class="section-wrap" style="text-align:center; padding:100px 24px;">
+      <h1 style="font-size:48px; color:var(--brand); margin-bottom:12px;">404</h1>
+      <p style="color:var(--text-muted); margin-bottom:20px;">The requested route is not registered on this vehicle control unit.</p>
+      <button class="btn-primary" onclick="navTo('/')">Return to Overview</button>
+    </section>
+  </div>
+
+</main>
+
+<!-- GLOBAL FOOTER -->
+<footer class="site-footer">
+  <div class="footer-wrap">
+    <div>
+      <div class="brand-lockup" onclick="navTo('/')" style="margin-bottom:12px;">
+        <div class="brand-mark">V</div>
+        <span class="brand-name">VehicleGPT</span>
+      </div>
+      <p style="font-size:13px; color:var(--text-muted); line-height:1.5;">
+        On-device vehicle intelligence and predictive diagnostics for Software Defined Vehicles. Localized SLM reasoning with zero cloud dependence.
+      </p>
+    </div>
+
+    <div>
+      <div class="footer-title">Platform</div>
+      <div class="footer-nav-list">
+        <span class="footer-nav-item" onclick="navTo('/')">Overview</span>
+        <span class="footer-nav-item" onclick="navTo('/demo')">Interactive Console</span>
+        <span class="footer-nav-item" onclick="navTo('/architecture')">Architecture</span>
+      </div>
+    </div>
+
+    <div>
+      <div class="footer-title">Applications</div>
+      <div class="footer-nav-list">
+        <span class="footer-nav-item" onclick="navTo('/use-cases')">Driver Experience</span>
+        <span class="footer-nav-item" onclick="navTo('/use-cases')">Service &amp; Repair</span>
+        <span class="footer-nav-item" onclick="navTo('/use-cases')">Fleet Management</span>
+      </div>
+    </div>
+
+    <div>
+      <div class="footer-title">Engineering</div>
+      <div class="footer-nav-list">
+        <span class="footer-nav-item" onclick="navTo('/privacy')">Safety Isolation</span>
+        <span class="footer-nav-item" onclick="navTo('/docs')">Developer Docs</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-base-row">
+    <div>&copy; 2026 VehicleGPT. On-Device Automotive Intelligence.</div>
+    <div>Built for TELIPORT Season 4</div>
+  </div>
+</footer>
+
+<!-- -----------------------------------------------------------------------
+     Unified Client-Side Router & HealthEngine Client Script
+     ----------------------------------------------------------------------- -->
+<script>
+// Route Table
+const PAGE_ROUTES = {
+  '/': 'view-home',
+  '/demo': 'view-demo',
+  '/architecture': 'view-architecture',
+  '/use-cases': 'view-use-cases',
+  '/privacy': 'view-privacy',
+  '/docs': 'view-docs'
+};
+
+function navTo(path) {
+  window.history.pushState({}, '', path);
+  applyRoute();
+}
+
+function applyRoute() {
+  const url = new URL(window.location.href);
+  const path = url.pathname === '/dashboard' ? '/demo' : url.pathname;
+  const targetId = PAGE_ROUTES[path] || 'view-404';
+
+  document.querySelectorAll('.page-view').forEach(p => p.classList.remove('active'));
+  const target = document.getElementById(targetId);
+  if (target) target.classList.add('active');
+
+  document.querySelectorAll('.nav-link').forEach(link => {
+    link.classList.toggle('active', link.getAttribute('data-path') === path);
+  });
+
+  window.scrollTo(0, 0);
+}
+
+window.addEventListener('popstate', applyRoute);
+
+// Theme Toggle
+function toggleTheme() {
+  const cur = document.documentElement.getAttribute('data-theme');
+  const next = cur === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('vg_theme', next);
+}
+
+// Initial Setup
+window.addEventListener('DOMContentLoaded', () => {
+  const saved = localStorage.getItem('vg_theme');
+  if (saved) document.documentElement.setAttribute('data-theme', saved);
+  applyRoute();
+  initSSE();
+  fetchComponentTelemetry();
+  setInterval(fetchComponentTelemetry, 2000);
+});
+
+// Architecture Block Inspector Data
+const ARCH_MAP = {
+  ingestion: {
+    title: "CAN & CAN-FD Ingestion Layer",
+    purpose: "Sniffs raw broadcast frames directly from the vehicle physical bus at 500 kbit/s or up to 5 Mbit/s without injecting polling frames.",
+    tech: "SocketCAN / Linux kernel drivers / J1939 DBC Frame Parser",
+    just: "Zero-copy circular ring buffers prevent dropped frames during bursty network transmissions."
+  },
+  diode: {
+    title: "Passive Safety Data Diode",
+    purpose: "Ensures the diagnostics stack is physically incapable of transmitting actuation messages to steering, braking, or powertrain controllers.",
+    tech: "Hardware Rx-only transceiver circuit & read-only socket flags",
+    just: "Satisfies ISO 26262 ASIL-D functional safety domain separation requirements."
+  },
+  storage: {
+    title: "Multi-Tier Memory Architecture",
+    purpose: "Maintains 10 seconds of high-frequency telemetry in memory and downsamples 24-hour aggregate baselines for trend calculations.",
+    tech: "In-memory fixed circular buffers & local embedded SQLite",
+    just: "Keeps total storage memory footprint strictly beneath 350 MB while preserving historical context."
+  },
+  engine: {
+    title: "Unified HealthEngine Core",
+    purpose: "Executes continuous rolling-window trend math, EWMA filtering, Z-score anomaly calculations, and multi-subsystem root cause sequencing.",
+    tech: "Optimized Python mathematical pipeline (< 40 MB RAM)",
+    just: "Implements a single deterministic, zero-overhead evaluation loop without inter-process IPC."
+  },
+  slm: {
+    title: "On-Device Language Model (1–3B Quantized)",
+    purpose: "Translates structured telemetry findings into clear, plain-language explanations with verified citations and zero hallucinations.",
+    tech: "4-bit quantized Small Language Model (Llama 3.2 3B / Hailo NPU)",
+    just: "Operates 100% offline within ~1.18 GB of memory, returning the first token in under 1.4 seconds."
+  }
+};
+
+function showArchInfo(k) {
+  const item = ARCH_MAP[k];
+  if (!item) return;
+  document.getElementById('archNodeTitle').innerText = item.title;
+  document.getElementById('archNodePurpose').innerText = item.purpose;
+  document.getElementById('archNodeTech').innerText = item.tech;
+  document.getElementById('archNodeJust').innerText = item.just;
+}
+
+// FAQ Accordion
+function toggleFaqRow(el) {
+  el.parentElement.classList.toggle('open');
+}
+
+// Mini Console on Overview Page
+async function runMini() {
+  const input = document.getElementById('miniField');
+  const q = input.value.trim();
+  if (!q) return;
+  input.value = '';
+  await executeMiniQuery(q);
+}
+
+function askMini(q) {
+  executeMiniQuery(q);
+}
+
+async function executeMiniQuery(query) {
+  const consoleBox = document.getElementById('miniConsole');
+  const btn = document.getElementById('miniSubmit');
+  btn.innerText = '...';
+  btn.disabled = true;
+
+  const u = document.createElement('div');
+  u.className = 'chat-entry user';
+  u.innerHTML = `<div class="chat-bubble">${query}</div>`;
+  consoleBox.appendChild(u);
+  consoleBox.scrollTop = consoleBox.scrollHeight;
+
+  try {
+    const res = await fetch('/dashboard/query', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: query, persona: 'driver' })
+    });
+    const data = await res.json();
+
+    const a = document.createElement('div');
+    a.className = 'chat-entry assistant';
+    a.innerHTML = `
+      <div class="chat-bubble">${data.answer}</div>
+      <div class="chat-meta">${(data.intent || 'TELEMETRY').toUpperCase()} &middot; ${data.source || 'LOCAL'}</div>
+    `;
+    consoleBox.appendChild(a);
+    consoleBox.scrollTop = consoleBox.scrollHeight;
+  } catch (err) {
+    const e = document.createElement('div');
+    e.className = 'chat-entry assistant';
+    e.innerHTML = `<div class="chat-bubble">Error querying local engine: ${err.message}</div>`;
+    consoleBox.appendChild(e);
+  } finally {
+    btn.innerText = 'Submit';
+    btn.disabled = false;
+  }
+}
+
+// -------------------------------------------------------------------------
+// Live Telemetry Streaming & HealthEngine Integration
+// -------------------------------------------------------------------------
+let componentRegistry = {};
+let selectedCompId = null;
+
+function initSSE() {
+  const es = new EventSource('/dashboard/stream');
+  es.onmessage = (e) => {
+    try {
+      const snap = JSON.parse(e.data);
+      if (!snap || !snap.signals) return;
+      const s = snap.signals;
+
+      const spd = s['WHEEL_SPEED_FL'] ? s['WHEEL_SPEED_FL'].value : (s['SPEED'] ? s['SPEED'].value : 0);
+      const rpm = s['ENGINE_SPEED'] ? s['ENGINE_SPEED'].value : 0;
+      const tmp = s['ENGINE_TEMP'] ? s['ENGINE_TEMP'].value : (s['COOLANT_TEMP'] ? s['COOLANT_TEMP'].value : 88);
+      const vlt = s['BATTERY_VOLTAGE'] ? s['BATTERY_VOLTAGE'].value : 13.8;
+
+      const elSpd = document.getElementById('valSpeed');
+      if (elSpd) {
+        elSpd.innerText = Number(spd).toFixed(1);
+        document.getElementById('valRpm').innerText = Math.round(rpm);
+        document.getElementById('valTemp').innerText = Math.round(tmp);
+        document.getElementById('valVolt').innerText = Number(vlt).toFixed(1);
+      }
+    } catch (err) {}
+  };
+}
+
+async function fetchComponentTelemetry() {
+  try {
+    const res = await fetch('/api/components');
+    if (!res.ok) return;
+    const data = await res.json();
+    const comps = data.components || [];
+    renderComponentList(comps);
+    updateOverallHealth(data.health_score || 100, data.causal_chain || []);
+  } catch (err) {}
+}
+
+function renderComponentList(comps) {
+  const container = document.getElementById('compContainer');
+  if (!container) return;
+
+  container.innerHTML = comps.map(c => {
+    componentRegistry[c.id] = c;
+    const statusCls = `status-${c.status.toLowerCase()}`;
+    const barColor = c.status === 'Critical' ? 'var(--red)' : 
+                     (c.status === 'Warning' || c.status === 'Watch') ? 'var(--amber)' : 'var(--green)';
+
+    // Update blueprint hotspot indicator
+    const spot = document.getElementById(`spot-${c.id}`);
+    if (spot) {
+      spot.className = `hotspot-node ${statusCls}`;
+    }
+
+    return `
+      <div class="comp-item-card ${selectedCompId === c.id ? 'active-comp' : ''}" onclick="selectComponent('${c.id}')">
+        <div class="comp-item-head">
+          <span class="comp-name">${c.name}</span>
+          <span class="status-pill ${statusCls}">${c.status}</span>
+        </div>
+        <div class="comp-bar-track">
+          <div class="comp-bar-fill" style="width: ${c.health_score}%; background: ${barColor};"></div>
+        </div>
+        <div class="comp-item-note">${c.status_note}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function updateOverallHealth(score, causalChain) {
+  const elNum = document.getElementById('healthScoreNum');
+  if (!elNum) return;
+  elNum.innerText = Math.round(score);
+
+  const ring = document.getElementById('scoreRing');
+  const circum = 188.5;
+  ring.style.strokeDashoffset = circum - (score / 100) * circum;
+
+  const titleEl = document.getElementById('healthStatusTitle');
+  const subEl = document.getElementById('healthStatusSub');
+  const causalBox = document.getElementById('causalDisplay');
+
+  if (score >= 90) {
+    ring.style.stroke = 'var(--green)';
+    titleEl.innerText = 'All Subsystems Nominal';
+    subEl.innerText = '34 CAN-FD signals within standard operational envelopes. Zero active trouble codes.';
+    causalBox.style.display = 'none';
+  } else if (score >= 70) {
+    ring.style.stroke = 'var(--amber)';
+    titleEl.innerText = 'Precautionary Watch State';
+    subEl.innerText = 'Thermal slope or sensor drift anomaly detected by HealthEngine.';
+    causalBox.style.display = 'none';
+  } else {
+    ring.style.stroke = 'var(--red)';
+    titleEl.innerText = 'Critical Subsystem Alert';
+    subEl.innerText = 'Severe threshold breach detected. Review root cause causal chain.';
+    causalBox.style.display = 'block';
+
+    const stepsContainer = document.getElementById('causalStepsContainer');
+    if (causalChain.length > 0) {
+      stepsContainer.innerHTML = causalChain.map(c => 
+        `<div class="causal-badge"><strong>${c.component}:</strong> ${c.event}</div>`
+      ).join('<span>&rarr;</span>');
+    } else {
+      stepsContainer.innerHTML = '<div class="causal-badge">Thermal Management restricted &rarr; Battery derated &rarr; Powertrain throttled</div>';
+    }
+  }
+}
+
+function selectComponent(id) {
+  selectedCompId = id;
+  const c = componentRegistry[id];
+  if (!c) return;
+
+  const chat = document.getElementById('consoleChat');
+  const note = document.createElement('div');
+  note.className = 'chat-row assistant';
+  note.innerHTML = `
+    <div class="bubble-body">
+      <strong>${c.name} Inspection:</strong><br>
+      • Status: ${c.status} (${c.health_score}/100)<br>
+      • Observation: ${c.status_note}<br>
+      ${c.precaution ? `• Precaution: ${c.precaution}<br>` : ''}
+      ${c.predicted_ttf ? `• Time to Threshold: ${c.predicted_ttf}` : ''}
+    </div>
+    <div class="bubble-tag">SUBSYSTEM AUDIT &middot; ${id.toUpperCase()}</div>
+  `;
+  chat.appendChild(note);
+  chat.scrollTop = chat.scrollHeight;
+
+  document.querySelectorAll('.comp-item-card').forEach(el => el.classList.remove('active-comp'));
+}
+
+async function applyScenario(sc) {
+  document.querySelectorAll('.btn-scenario').forEach(b => b.classList.remove('active-scenario'));
+  if (event && event.target) event.target.classList.add('active-scenario');
+
+  try {
+    await fetch('/api/scenarios', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scenario: sc })
+    });
+    fetchComponentTelemetry();
+  } catch (err) {}
+}
+
+async function sendConsoleQuery() {
+  const field = document.getElementById('consoleField');
+  const q = field.value.trim();
+  if (!q) return;
+  field.value = '';
+
+  const chat = document.getElementById('consoleChat');
+  const u = document.createElement('div');
+  u.className = 'chat-row user';
+  u.innerHTML = `<div class="bubble-body">${q}</div>`;
+  chat.appendChild(u);
+  chat.scrollTop = chat.scrollHeight;
+
+  const btn = document.getElementById('consoleSubmitBtn');
+  btn.innerText = '...';
+
+  try {
+    const res = await fetch('/dashboard/query', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: q, persona: 'driver' })
+    });
+    const data = await res.json();
+
+    const a = document.createElement('div');
+    a.className = 'chat-row assistant';
+    a.innerHTML = `
+      <div class="bubble-body">${data.answer}</div>
+      <div class="bubble-tag">${data.intent || 'TELEMETRY'} &middot; ${data.source || 'HEALTHENGINE'}</div>
+    `;
+    chat.appendChild(a);
+    chat.scrollTop = chat.scrollHeight;
+  } catch (err) {
+  } finally {
+    btn.innerText = 'Send';
+  }
+}
+
+function formatTs(value) {
+  if (!value) return '—';
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return String(value);
+  try { return new Date(n * 1000).toLocaleString(); } catch (e) { return String(value); }
+}
+
+function scrubTimeline(e) {
+  const rect = e.currentTarget.getBoundingClientRect();
+  const pct = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+  document.getElementById('playhead').style.left = `${pct}%`;
+  
+  const badge = document.getElementById('tierBadge');
+  if (pct < 50) {
+    document.getElementById('scrubberLabel').innerText = `SCRUBBED: older window (daily markers)`;
+    badge.innerText = 'SUMMARIZED · daily min/max/mean';
+    badge.style.background = 'var(--amber-bg)';
+    badge.style.color = 'var(--amber)';
+    badge.style.borderColor = 'var(--amber-border)';
+  } else if (pct < 96) {
+    document.getElementById('scrubberLabel').innerText = `SCRUBBED: last 15 days (full 5s detail)`;
+    badge.innerText = 'Tier 1: Raw 5s Detail';
+    badge.style.background = 'var(--green-bg)';
+    badge.style.color = 'var(--green)';
+    badge.style.borderColor = 'var(--green-border)';
+  } else {
+    document.getElementById('scrubberLabel').innerText = 'LIVE (NOW)';
+    badge.innerText = 'Tier 1: Live Stream';
+    badge.style.background = 'var(--green-bg)';
+    badge.style.color = 'var(--green)';
+    badge.style.borderColor = 'var(--green-border)';
+  }
+}
+
+// Data Retention Drawer & API
+function toggleRetentionDrawer() {
+  const el = document.getElementById('retentionDrawer');
+  const isHidden = el.style.display === 'none';
+  el.style.display = isHidden ? 'block' : 'none';
+  if (isHidden) fetchRetentionStats();
+}
+
+async function fetchRetentionStats() {
+  try {
+    const res = await fetch('/api/retention/stats');
+    if (!res.ok) return;
+    const data = await res.json();
+    const spt = data.storage_per_tier || {};
+    document.getElementById('statRawCount').innerText = Number(data.raw_samples_count || 0).toLocaleString();
+    document.getElementById('statSummaryCount').innerText = `${data.daily_summaries_count || 0} days`;
+    document.getElementById('statEventCount').innerText = `${data.events_count || 0} events`;
+    const rawKb = spt.raw_samples_kb ?? spt.tier_1_raw_samples_kb ?? 0;
+    const sumKb = spt.daily_summaries_kb ?? spt.tier_2_daily_summaries_kb ?? 0;
+    const evtKb = spt.events_kb ?? spt.tier_3_events_kb ?? 0;
+    document.getElementById('statRawStorage').innerText = `${rawKb} KB · rolling ${data.raw_retention_days || 15} days`;
+    document.getElementById('statSummaryStorage').innerText = `${sumKb} KB · ${data.summary_retention_months || 12}+ months`;
+    document.getElementById('statEventStorage').innerText = `${evtKb} KB · kept forever`;
+
+    const daysSearchable = data.days_searchable || 0;
+    document.getElementById('statDbSize').innerText = `${daysSearchable} days`;
+    const sched = data.scheduler || {};
+    const lastIso = sched.last_run_iso || formatTs(sched.last_run);
+    const nextIso = sched.next_run_iso || formatTs(sched.next_run);
+    let compText = `${data.database_size_kb || 0} KB total · last ${lastIso} · next ${nextIso}`;
+    if (data.last_compaction) {
+      compText += ` · ${data.last_compaction.rows_compacted} rows`;
+    }
+    document.getElementById('statLastCompaction').innerText = compText;
+    await fetchTimelineMarkers();
+  } catch (err) {}
+}
+
+async function fetchTimelineMarkers() {
+  try {
+    const res = await fetch('/api/retention/timeline?days=30');
+    if (!res.ok) return;
+    const data = await res.json();
+    const host = document.getElementById('scrubberMarkers');
+    if (!host) return;
+    host.innerHTML = '';
+    const days = data.days || 30;
+    (data.markers || []).filter(m => m.kind === 'daily' && m.summarized).forEach((m) => {
+      const age = (Date.now() - new Date(m.date).getTime()) / 86400000;
+      const pct = Math.max(0, Math.min(100, 100 - (age / days) * 100));
+      const tick = document.createElement('div');
+      tick.className = 'scrubber-daily-marker';
+      tick.style.left = `${pct}%`;
+      tick.title = `${m.date} summarized`;
+      host.appendChild(tick);
+    });
+  } catch (err) {}
+}
+
+async function triggerCompactionNow() {
+  const btn = document.getElementById('btnCompactNow');
+  btn.innerText = 'Compacting...';
+  btn.disabled = true;
+  try {
+    await fetch('/api/retention/compact', { method: 'POST' });
+    await fetchRetentionStats();
+  } catch (err) {
+  } finally {
+    btn.innerText = '⚡ Run Compaction Now';
+    btn.disabled = false;
+  }
+}
+
+async function triggerFastForward30() {
+  const btn = document.getElementById('btnFastForward');
+  btn.innerText = 'Simulating...';
+  btn.disabled = true;
+  try {
+    const res = await fetch('/api/retention/fast-forward', { method: 'POST' });
+    const data = await res.json();
+    await fetchRetentionStats();
+    
+    // Add note in console
+    const chat = document.getElementById('consoleChat');
+    const note = document.createElement('div');
+    note.className = 'chat-row assistant';
+    note.innerHTML = `
+      <div class="bubble-body">
+        <strong>Fast-Forward 30 Days Completed:</strong><br>
+        • Seeded 30 days of vehicle travel across city and highway profiles.<br>
+        • Day-20 battery overheating warning generated with permanent +/- 60s freeze-frame context snapshot.<br>
+        • Automatically compacted ${data.days_compacted} older days into daily summaries.<br>
+        • Storage footprint bounded at ${data.storage_stats.database_size_kb} KB.
+      </div>
+      <div class="bubble-tag">RETENTION SIMULATION &middot; COMPACTION COMPLETE</div>
+    `;
+    chat.appendChild(note);
+    chat.scrollTop = chat.scrollHeight;
+  } catch (err) {
+  } finally {
+    btn.innerText = '⏩ Fast-Forward 30 Days';
+    btn.disabled = false;
+  }
+}
+</script>
+</body>
+</html>
