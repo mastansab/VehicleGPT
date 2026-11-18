@@ -74,6 +74,7 @@ peykan.exe demo --port 6278   # On Windows
 Open your browser to:
 👉 **[http://localhost:6278/](http://localhost:6278/)** (Overview)
 👉 **[http://localhost:6278/demo](http://localhost:6278/demo)** (Interactive Digital Twin)
+live demo URL : https://vehiclegpt-1.onrender.com
 
 ---
 
